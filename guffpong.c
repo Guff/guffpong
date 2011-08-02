@@ -90,15 +90,23 @@ void get_input(void) {
     }
 }
 
+void draw_stippled_line(SDL_Surface *screen) {
+    for (int i = 0; i < WINDOW_HEIGHT / 40; i++) {
+        boxColor(screen, WINDOW_WIDTH / 2 - 3, 2 * i * 20, WINDOW_WIDTH / 2 + 3,
+                 2 * i * 20 + 20, 0xffffffff);
+    }
+}
+
 void draw_frame(SDL_Surface *screen) {
     SDL_FillRect(screen, NULL, SDL_MapRGB(screen->format, 0, 0, 0));
+    draw_stippled_line(screen);
     boxColor(screen, P1_X, p1.y, P1_X + PADDLE_WIDTH,
              p1.y + PADDLE_HEIGHT, 0xffffffff);
     boxColor(screen, P2_X, p2.y, P2_X + PADDLE_WIDTH,
              p2.y + PADDLE_HEIGHT, 0xffffffff);
     filledCircleColor(screen, ball.x, ball.y, ball.radius, 0xffffffff);
     aacircleColor(screen, ball.x, ball.y, ball.radius, 0xffffffff);
-    SDLPango_Context *context = SDLPango_CreateContext();
+    SDLPango_Context *context = SDLPango_CreateContext_GivenFontDesc("Sans 20");
     SDLPango_SetDefaultColor(context, MATRIX_TRANSPARENT_BACK_WHITE_LETTER);
     SDLPango_SetMinimumSize(context, WINDOW_WIDTH, 0);
     char text[4];
