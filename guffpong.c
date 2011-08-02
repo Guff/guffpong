@@ -154,6 +154,27 @@ void ball_compute_position(void) {
     ball.y += ball.vel_y;
 }
 
+void paddle_move(paddle_t *paddle) {
+    // factor in friction for the paddle
+    paddle->vel_y = copysign(MAX(abs(paddle->vel_y) - 0.5, 0), paddle->vel_y);
+    paddle->y += paddle->vel_y;
+    if (paddle->y > WINDOW_HEIGHT - PADDLE_HEIGHT) {
+        paddle->y = WINDOW_HEIGHT - PADDLE_HEIGHT;
+        paddle->vel_y = -paddle->vel_y;
+    }
+    else if (paddle->y < 0) {
+        paddle->y = 0;
+        paddle->vel_y = -paddle->vel_y;
+    }
+}
+
+void ai_paddle(void) {
+    if (p2.y > p1.y)
+        p2.vel_y -= 2;
+    else
+        p2.vel_y += 2;
+}
+
 void game_loop(SDL_Surface *screen) {
     running = true;
     
@@ -169,16 +190,10 @@ void game_loop(SDL_Surface *screen) {
         if (key_state.down_down)
             p1.vel_y += 2;
         
-        p1.vel_y = copysign(MAX(abs(p1.vel_y) - 0.5, 0), p1.vel_y);
-        p1.y += p1.vel_y;
-        if (p1.y > WINDOW_HEIGHT - PADDLE_HEIGHT) {
-            p1.y = WINDOW_HEIGHT - PADDLE_HEIGHT;
-            p1.vel_y = -p1.vel_y;
-        }
-        else if (p1.y < 0) {
-            p1.y = 0;
-            p1.vel_y = -p1.vel_y;
-        }
+        ai_paddle();
+        
+        paddle_move(&p1);
+        paddle_move(&p2);
         
         ball_compute_position();
         
