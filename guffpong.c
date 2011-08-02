@@ -145,13 +145,13 @@ void reset_ball(void) {
 }
 
 void ball_compute_position(void) {
-    if (ball_will_collide(0, -10, WINDOW_WIDTH, 10)) // top wall
+    if (ball_will_collide(0, -100, WINDOW_WIDTH, 100)) // top wall
         ball.vel_y = -ball.vel_y;
-    else if (ball_will_collide(WINDOW_WIDTH, 0, 10, WINDOW_HEIGHT)) // right
+    else if (ball_will_collide(WINDOW_WIDTH, 0, 100, WINDOW_HEIGHT)) // right
         scores.p2++, reset_ball();
-    else if (ball_will_collide(0, WINDOW_HEIGHT, WINDOW_WIDTH, 10)) // bottom
+    else if (ball_will_collide(0, WINDOW_HEIGHT, WINDOW_WIDTH, 100)) // bottom
         ball.vel_y = -ball.vel_y;
-    else if (ball_will_collide(-10, 0, 10, WINDOW_HEIGHT)) // left
+    else if (ball_will_collide(-100, 0, 100, WINDOW_HEIGHT)) // left
         scores.p1++, reset_ball();
     else if (ball_will_collide(P1_X, p1.y, PADDLE_WIDTH, PADDLE_HEIGHT)) { // P1
         ball.vel_x = -ball.vel_x;
@@ -181,7 +181,7 @@ void paddle_move(paddle_t *paddle) {
 }
 
 void ai_paddle(void) {
-    if (p2.y > p1.y)
+    if (p2.y + PADDLE_HEIGHT / 2 > ball.y)
         p2.vel_y -= 2;
     else
         p2.vel_y += 2;
