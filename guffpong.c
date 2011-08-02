@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <math.h>
+#include <time.h>
 #include <SDL.h>
 #include <SDL_gfxPrimitives.h>
 
@@ -34,6 +36,11 @@ typedef struct {
     double y;
     double vel_y;
 } paddle_t;
+
+struct {
+    unsigned int p1;
+    unsigned int p2;
+} scores = {0, 0};
 
 ball_t ball;
 paddle_t p1;
@@ -103,15 +110,24 @@ bool ball_will_collide(double x, double y, double width, double height) {
     return point_in_rect(pos_int_x, pos_int_y, rect);
 }
 
+void reset_ball(void) {
+    double mul = rand() / (double) RAND_MAX;
+    ball.vel_x = mul * 10;
+    ball.vel_y = 10 - ball.vel_x;
+    ball.x = WINDOW_WIDTH / 2;
+    ball.y = WINDOW_HEIGHT / 2;
+    ball.radius = 10;
+}
+
 void ball_compute_position(void) {
     if (ball_will_collide(0, 0, WINDOW_WIDTH, 10)) // top wall
         ball.vel_y = -ball.vel_y;
     else if (ball_will_collide(WINDOW_WIDTH, 0, 10, WINDOW_HEIGHT)) // right
-        ball.vel_x = -ball.vel_x;
+        scores.p2++, reset_ball();
     else if (ball_will_collide(0, WINDOW_HEIGHT, WINDOW_WIDTH, 10)) // bottom
         ball.vel_y = -ball.vel_y;
     else if (ball_will_collide(0, 0, 10, WINDOW_HEIGHT)) // left
-        ball.vel_x = -ball.vel_x;
+        scores.p1++, reset_ball();
     else if (ball_will_collide(P1_X, p1.y, PADDLE_WIDTH, PADDLE_HEIGHT))
         ball.vel_x = -ball.vel_x;
     
@@ -122,14 +138,12 @@ void ball_compute_position(void) {
 void game_loop(SDL_Surface *screen) {
     running = true;
     
+    srand(time(NULL));
+    
     p1.y = 0;
     p1.vel_y = 0;
     
-    ball.x = WINDOW_WIDTH / 2;
-    ball.y = WINDOW_HEIGHT / 2;
-    ball.vel_x = -4;
-    ball.vel_y = -3;
-    ball.radius = 10;
+    reset_ball();
     
     while (running) {
         int loop_time = SDL_GetTicks();
@@ -155,7 +169,6 @@ void game_loop(SDL_Surface *screen) {
         get_input();
         draw_frame(screen);
         SDL_Delay(INT_MS - (SDL_GetTicks() - loop_time));
-        printf("%f\n", p1.vel_y);
     }
 }
 

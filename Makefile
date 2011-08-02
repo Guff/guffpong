@@ -5,7 +5,7 @@ CC	?= gcc
 
 PKGS := sdl SDL_gfx
 INCS := $(shell pkg-config --cflags $(PKGS))
-LIBS := $(shell pkg-config --libs $(PKGS))
+LIBS := $(shell pkg-config --libs $(PKGS)) -lm
 
 DEBUG    := -g -DDEBUG
 CFLAGS   := -Wall -Wextra -std=gnu99 -I. $(INCS) $(CFLAGS) $(DEBUG)
