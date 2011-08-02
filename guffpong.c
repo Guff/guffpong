@@ -145,10 +145,14 @@ void ball_compute_position(void) {
         ball.vel_y = -ball.vel_y;
     else if (ball_will_collide(-10, 0, 10, WINDOW_HEIGHT)) // left
         scores.p1++, reset_ball();
-    else if (ball_will_collide(P1_X, p1.y, PADDLE_WIDTH, PADDLE_HEIGHT))
+    else if (ball_will_collide(P1_X, p1.y, PADDLE_WIDTH, PADDLE_HEIGHT)) { // P1
         ball.vel_x = -ball.vel_x;
-    else if (ball_will_collide(P2_X, p2.y, PADDLE_WIDTH, PADDLE_HEIGHT))
+        ball.vel_y += p1.vel_y / 2;
+    }
+    else if (ball_will_collide(P2_X, p2.y, PADDLE_WIDTH, PADDLE_HEIGHT)) { // P2
         ball.vel_x = -ball.vel_x;
+        ball.vel_y += p1.vel_y / 2;
+    }
     
     ball.x += ball.vel_x;
     ball.y += ball.vel_y;
