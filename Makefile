@@ -3,7 +3,7 @@ INSTALLDIR := $(DESTDIR)$(PREFIX)
 
 CC	?= gcc
 
-PKGS := sdl SDL_gfx
+PKGS := sdl SDL_gfx SDL_Pango
 INCS := $(shell pkg-config --cflags $(PKGS))
 LIBS := $(shell pkg-config --libs $(PKGS)) -lm
 
