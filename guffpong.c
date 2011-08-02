@@ -15,6 +15,7 @@
 #define WINDOW_HEIGHT 400
 #define PADDLE_WIDTH  20
 #define PADDLE_HEIGHT 150
+#define AI_FUDGE      0.5
 #define P1_X          370
 #define P2_X          (WINDOW_HEIGHT - P1_X - PADDLE_WIDTH)
 
@@ -181,9 +182,9 @@ void paddle_move(paddle_t *paddle) {
 }
 
 void ai_paddle(void) {
-    if (p2.y + PADDLE_HEIGHT / 2 > ball.y)
+    if (p2.y + PADDLE_HEIGHT / 2 > ball.y + AI_FUDGE)
         p2.vel_y -= 2;
-    else
+    else if (p2.y + PADDLE_HEIGHT / 2 < ball.y - AI_FUDGE)
         p2.vel_y += 2;
 }
 
