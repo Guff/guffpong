@@ -46,6 +46,7 @@ struct {
 ball_t ball;
 paddle_t p1 = {P1_X, (WINDOW_HEIGHT - PADDLE_HEIGHT) / 2, 0, 0};
 paddle_t p2 = {P2_X, (WINDOW_HEIGHT - PADDLE_HEIGHT) / 2, 0, 0};
+SDLPango_Context *scores_context;
 
 bool running;
 
@@ -124,16 +125,12 @@ void draw_frame(SDL_Surface *screen) {
     aacircleColor(screen, ball.x, ball.y, ball.radius, 0xffffffff);
     
     // score text
-    SDLPango_Context *context = SDLPango_CreateContext_GivenFontDesc("Sans 20");
-    SDLPango_SetDefaultColor(context, MATRIX_TRANSPARENT_BACK_WHITE_LETTER);
-    SDLPango_SetMinimumSize(context, WINDOW_WIDTH, 0);
-    char text[8];
-    snprintf(text, 8, "%3i %3i", scores.p2, scores.p1);
-    SDLPango_SetText_GivenAlignment(context, text, strlen(text),
+    char text[9];
+    snprintf(text, 9, "%03i  %03i", scores.p2, scores.p1);
+    SDLPango_SetText_GivenAlignment(scores_context, text, strlen(text),
                                     SDLPANGO_ALIGN_CENTER);
-    SDL_Surface *surface = SDLPango_CreateSurfaceDraw(context);
+    SDL_Surface *surface = SDLPango_CreateSurfaceDraw(scores_context);
     SDL_BlitSurface(surface, NULL, screen, NULL);
-    SDLPango_FreeContext(context);
     SDL_FreeSurface(surface);
     SDL_Flip(screen);
 }
@@ -160,6 +157,7 @@ void ball_compute_position(void) {
         (pos_int_x + BALL_RADIUS) < p1.x + PADDLE_WIDTH) {
             ball.vel_x = -ball.vel_x;
             ball.vel_x += p1.vel_x / 2;
+            p1.vel_x = -ball.vel_x / 2;
             ball.vel_y += p1.vel_y / 2;
     }
     // p2's paddle
@@ -168,6 +166,7 @@ void ball_compute_position(void) {
         (pos_int_x - BALL_RADIUS) > p2.x) {
             ball.vel_x = -ball.vel_x;
             ball.vel_x += p2.vel_x / 2;
+            p2.vel_x = -p2.vel_x / 2;
             ball.vel_y += p2.vel_y / 2;
     }
     
@@ -232,6 +231,11 @@ void game_loop(SDL_Surface *screen) {
     
     reset_ball();
     
+    scores_context = SDLPango_CreateContext_GivenFontDesc("Sans 20");
+    SDLPango_SetDefaultColor(scores_context,
+                             MATRIX_TRANSPARENT_BACK_WHITE_LETTER);
+    SDLPango_SetMinimumSize(scores_context, WINDOW_WIDTH, 0);
+    
     while (running) {
         int loop_time = SDL_GetTicks();
         
@@ -254,7 +258,8 @@ void game_loop(SDL_Surface *screen) {
         ball_compute_position();
         
         draw_frame(screen);
-        SDL_Delay(MIN(0, INT_MS - (SDL_GetTicks() - loop_time)));
+        
+        SDL_Delay(MAX(0, INT_MS + (signed) (loop_time - SDL_GetTicks())));
     }
 }
 
@@ -266,7 +271,7 @@ int main(int argc, char **argv) {
     SDL_WM_SetCaption("guffpong", "guffpong");
     
     SDL_Surface *screen = SDL_SetVideoMode(WINDOW_WIDTH, WINDOW_HEIGHT, 16,
-                                           SDL_DOUBLEBUF | SDL_HWSURFACE);
+                                           SDL_HWSURFACE | SDL_DOUBLEBUF);
     SDL_ShowCursor(false);
     
     running = true;
