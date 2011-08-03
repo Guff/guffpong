@@ -13,6 +13,7 @@
 #define INT_MS        50
 #define WINDOW_WIDTH  400
 #define WINDOW_HEIGHT 400
+#define BALL_RADIUS   10
 #define PADDLE_WIDTH  20
 #define PADDLE_HEIGHT 150
 #define AI_FUDGE      0.5
@@ -22,7 +23,9 @@
 struct {
     bool up_down;
     bool down_down;
-} key_state = {false, false};
+    bool left_down;
+    bool right_down;
+} key_state = {false, false, false, false};
 
 typedef struct {
     double x, y;
@@ -36,8 +39,8 @@ typedef struct {
 } ball_t;
 
 typedef struct {
-    double y;
-    double vel_y;
+    double x, y;
+    double vel_x, vel_y;
 } paddle_t;
 
 struct {
@@ -46,8 +49,8 @@ struct {
 } scores = {0, 0};
 
 ball_t ball;
-paddle_t p1 = {(WINDOW_HEIGHT - PADDLE_HEIGHT) / 2, 0};
-paddle_t p2 = {(WINDOW_HEIGHT - PADDLE_HEIGHT) / 2, 0};
+paddle_t p1 = {P1_X, (WINDOW_HEIGHT - PADDLE_HEIGHT) / 2, 0, 0};
+paddle_t p2 = {P2_X, (WINDOW_HEIGHT - PADDLE_HEIGHT) / 2, 0, 0};
 
 bool running;
 
@@ -69,6 +72,11 @@ void get_input(void) {
                     case SDLK_DOWN:
                         key_state.down_down = true;
                         break;
+                    case SDLK_LEFT:
+                        key_state.left_down = true;
+                        break;
+                    case SDLK_RIGHT:
+                        key_state.right_down = true;
                     default:
                         break;
                 }
@@ -80,6 +88,12 @@ void get_input(void) {
                         break;
                     case SDLK_DOWN:
                         key_state.down_down = false;
+                        break;
+                    case SDLK_LEFT:
+                        key_state.left_down = false;
+                        break;
+                    case SDLK_RIGHT:
+                        key_state.right_down = false;
                         break;
                     default:
                         break;
@@ -101,20 +115,27 @@ void draw_stippled_line(SDL_Surface *screen) {
 void draw_frame(SDL_Surface *screen) {
     SDL_FillRect(screen, NULL, SDL_MapRGB(screen->format, 0, 0, 0));
     draw_stippled_line(screen);
-    boxColor(screen, P1_X, p1.y, P1_X + PADDLE_WIDTH,
+    
+    // player 1's paddle
+    boxColor(screen, p1.x, p1.y, p1.x + PADDLE_WIDTH,
              p1.y + PADDLE_HEIGHT, 0xffffffff);
-    boxColor(screen, P2_X, p2.y, P2_X + PADDLE_WIDTH,
+    // player 2's paddle
+    boxColor(screen, p2.x, p2.y, p2.x + PADDLE_WIDTH,
              p2.y + PADDLE_HEIGHT, 0xffffffff);
+    
+    // draw the circle
     filledCircleColor(screen, ball.x, ball.y, ball.radius, 0xffffffff);
+    // draw an antialiased border for the circle
     aacircleColor(screen, ball.x, ball.y, ball.radius, 0xffffffff);
+    
+    // score text
     SDLPango_Context *context = SDLPango_CreateContext_GivenFontDesc("Sans 20");
     SDLPango_SetDefaultColor(context, MATRIX_TRANSPARENT_BACK_WHITE_LETTER);
     SDLPango_SetMinimumSize(context, WINDOW_WIDTH, 0);
-    char text[4];
-    snprintf(text, 4, "%i %i", scores.p2, scores.p1);
+    char text[8];
+    snprintf(text, 8, "%3i %3i", scores.p2, scores.p1);
     SDLPango_SetText_GivenAlignment(context, text, strlen(text),
                                     SDLPANGO_ALIGN_CENTER);
-    //SDLPango_Draw(context, screen, 0, 0);
     SDL_Surface *surface = SDLPango_CreateSurfaceDraw(context);
     SDL_BlitSurface(surface, NULL, screen, NULL);
     SDLPango_FreeContext(context);
@@ -122,62 +143,84 @@ void draw_frame(SDL_Surface *screen) {
     SDL_Flip(screen);
 }
 
-bool point_in_rect(int x, int y, rectangle_t rect) {
-    return (x >= rect.x && x <= rect.x + rect.width &&
-            y >= rect.y && y <= rect.y + rect.height);
-}
-
-bool ball_will_collide(double x, double y, double width, double height) {
-    double pos_int_x = ball.x + ball.vel_x;
-    double pos_int_y = ball.y + ball.vel_y;
-    
-    rectangle_t rect = {x, y, width, height};
-    
-    return point_in_rect(pos_int_x, pos_int_y, rect);
-}
-
 void reset_ball(void) {
     double mul = rand() / (double) RAND_MAX;
-    ball.vel_x = mul * 10;
+    ball.vel_x = MAX(mul * 10, 10 - mul * 10);
     ball.vel_y = 10 - ball.vel_x;
     ball.x = WINDOW_WIDTH / 2;
     ball.y = WINDOW_HEIGHT / 2;
-    ball.radius = 10;
+    ball.radius = BALL_RADIUS;
 }
 
 void ball_compute_position(void) {
-    if (ball_will_collide(0, -100, WINDOW_WIDTH, 100)) // top wall
+    double pos_int_x = ball.x + ball.vel_x;
+    double pos_int_y = ball.y + ball.vel_y;
+    
+    // top and bottom walls
+    if (pos_int_y < BALL_RADIUS || pos_int_y > WINDOW_HEIGHT - BALL_RADIUS)
         ball.vel_y = -ball.vel_y;
-    else if (ball_will_collide(WINDOW_WIDTH, 0, 100, WINDOW_HEIGHT)) // right
-        scores.p2++, reset_ball();
-    else if (ball_will_collide(0, WINDOW_HEIGHT, WINDOW_WIDTH, 100)) // bottom
-        ball.vel_y = -ball.vel_y;
-    else if (ball_will_collide(-100, 0, 100, WINDOW_HEIGHT)) // left
+    // p1's paddle
+    if (pos_int_y > p1.y && pos_int_y < p1.y + PADDLE_HEIGHT &&
+        (pos_int_x + BALL_RADIUS) > p1.x &&
+        (pos_int_x + BALL_RADIUS) < p1.x + PADDLE_WIDTH) {
+            ball.vel_x = -ball.vel_x;
+            ball.vel_x += p1.vel_x / 2;
+            ball.vel_y += p1.vel_y / 2;
+    }
+    // p2's paddle
+    if (pos_int_y > p2.y && pos_int_y < p2.y + PADDLE_HEIGHT &&
+        (pos_int_x - BALL_RADIUS) < p2.x + PADDLE_WIDTH &&
+        (pos_int_x - BALL_RADIUS) > p2.x) {
+            ball.vel_x = -ball.vel_x;
+            ball.vel_x += p2.vel_x / 2;
+            ball.vel_y += p2.vel_y / 2;
+    }
+    
+    if (pos_int_x < BALL_RADIUS) { // left wall
         scores.p1++, reset_ball();
-    else if (ball_will_collide(P1_X, p1.y, PADDLE_WIDTH, PADDLE_HEIGHT)) { // P1
-        ball.vel_x = -ball.vel_x;
-        ball.vel_y += p1.vel_y / 2;
+        printf("%f %f\n", pos_int_x - BALL_RADIUS, p2.x + PADDLE_WIDTH);
     }
-    else if (ball_will_collide(P2_X, p2.y, PADDLE_WIDTH, PADDLE_HEIGHT)) { // P2
-        ball.vel_x = -ball.vel_x;
-        ball.vel_y += p1.vel_y / 2;
-    }
+    else if (pos_int_x > WINDOW_WIDTH - BALL_RADIUS) // right wall
+        scores.p2++, reset_ball();
     
     ball.x += ball.vel_x;
     ball.y += ball.vel_y;
 }
 
 void paddle_move(paddle_t *paddle) {
+    // use the current position of the paddle to determine which box it's in
+    double paddle_x = paddle->x;
+    
     // factor in friction for the paddle
     paddle->vel_y = copysign(MAX(abs(paddle->vel_y) - 0.5, 0), paddle->vel_y);
     paddle->y += paddle->vel_y;
+    
     if (paddle->y > WINDOW_HEIGHT - PADDLE_HEIGHT) {
         paddle->y = WINDOW_HEIGHT - PADDLE_HEIGHT;
         paddle->vel_y = -paddle->vel_y;
-    }
-    else if (paddle->y < 0) {
+    } else if (paddle->y < 0) {
         paddle->y = 0;
         paddle->vel_y = -paddle->vel_y;
+    }
+    
+    paddle->vel_x = copysign(MAX(abs(paddle->vel_x) - 0.5, 0), paddle->vel_x);
+    paddle->x += paddle->vel_x;
+    if (paddle_x >= WINDOW_WIDTH / 2) {
+        if (paddle->x > WINDOW_WIDTH - PADDLE_WIDTH) {
+            paddle->x = WINDOW_WIDTH - PADDLE_WIDTH;
+            paddle->vel_x = -paddle->vel_x;
+        } else if (paddle->x < WINDOW_WIDTH / 2) {
+            paddle->x = WINDOW_WIDTH / 2;
+            paddle->vel_x = -paddle->vel_x;
+        }
+    } else {
+        if (paddle->x < 0) {
+            paddle->x = 0;
+            paddle->vel_x = -paddle->vel_x;
+        } else if (paddle->x > WINDOW_WIDTH / 2 - PADDLE_WIDTH) {
+            paddle->x = WINDOW_WIDTH / 2 - PADDLE_WIDTH;
+            paddle->vel_x = -paddle->vel_x;
+        }
     }
 }
 
@@ -202,6 +245,10 @@ void game_loop(SDL_Surface *screen) {
             p1.vel_y -= 2;
         if (key_state.down_down)
             p1.vel_y += 2;
+        if (key_state.left_down)
+            p1.vel_x -= 2;
+        if (key_state.right_down)
+            p1.vel_x += 2;
         
         ai_paddle();
         
