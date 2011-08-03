@@ -241,6 +241,8 @@ void game_loop(SDL_Surface *screen) {
     while (running) {
         int loop_time = SDL_GetTicks();
         
+        get_input();
+
         if (key_state.up_down)
             p1.vel_y -= 2;
         if (key_state.down_down)
@@ -257,7 +259,6 @@ void game_loop(SDL_Surface *screen) {
         
         ball_compute_position();
         
-        get_input();
         draw_frame(screen);
         SDL_Delay(MIN(0, INT_MS - (SDL_GetTicks() - loop_time)));
     }
