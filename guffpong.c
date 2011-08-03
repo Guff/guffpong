@@ -28,11 +28,6 @@ struct {
 } key_state = {false, false, false, false};
 
 typedef struct {
-    double x, y;
-    double width, height;
-} rectangle_t;
-
-typedef struct {
     double vel_x, vel_y;
     double x, y;
     double radius;
@@ -178,7 +173,6 @@ void ball_compute_position(void) {
     
     if (pos_int_x < BALL_RADIUS) { // left wall
         scores.p1++, reset_ball();
-        printf("%f %f\n", pos_int_x - BALL_RADIUS, p2.x + PADDLE_WIDTH);
     }
     else if (pos_int_x > WINDOW_WIDTH - BALL_RADIUS) // right wall
         scores.p2++, reset_ball();
