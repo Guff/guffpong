@@ -14,12 +14,14 @@
 #define WINDOW_WIDTH  400
 #define WINDOW_HEIGHT 400
 #define BALL_RADIUS   10
+#define BALL_MASS     1
+#define BALL_PNG      "data/ball.png"
 #define PADDLE_WIDTH  20
 #define PADDLE_HEIGHT 150
+#define PADDLE_MASS   15
 #define AI_FUDGE      0.5
 #define P1_X          370
 #define P2_X          (WINDOW_HEIGHT - P1_X - PADDLE_WIDTH)
-#define BALL_PNG      "data/ball.png"
 
 struct {
     bool up_down;
@@ -29,15 +31,17 @@ struct {
 } key_state = {false, false, false, false};
 
 typedef struct {
-    double vel_x, vel_y;
-    double x, y;
-    double radius;
+    float vel_x, vel_y;
+    float x, y;
+    float radius;
+    float mass;
     SDL_Surface *surface;
 } ball_t;
 
 typedef struct {
-    double x, y;
-    double vel_x, vel_y;
+    float x, y;
+    float vel_x, vel_y;
+    float mass;
 } paddle_t;
 
 struct {
@@ -46,8 +50,8 @@ struct {
 } scores = {0, 0};
 
 ball_t ball;
-paddle_t p1 = {P1_X, (WINDOW_HEIGHT - PADDLE_HEIGHT) / 2, 0, 0};
-paddle_t p2 = {P2_X, (WINDOW_HEIGHT - PADDLE_HEIGHT) / 2, 0, 0};
+paddle_t p1 = {P1_X, (WINDOW_HEIGHT - PADDLE_HEIGHT) / 2, 0, 0, PADDLE_MASS};
+paddle_t p2 = {P2_X, (WINDOW_HEIGHT - PADDLE_HEIGHT) / 2, 0, 0, PADDLE_MASS};
 SDLPango_Context *scores_context;
 int update_rects_n = 0;
 SDL_Rect *update_rects = NULL;
@@ -153,49 +157,53 @@ void draw_frame(SDL_Surface *screen) {
 }
 
 void reset_ball(void) {
-    double mul = rand() / (double) RAND_MAX;
+    float mul = rand() / (float) RAND_MAX;
     ball.vel_x = MAX(mul * 10, 10 - mul * 10);
     ball.vel_y = 10 - ball.vel_x;
     ball.x = WINDOW_WIDTH / 2;
     ball.y = WINDOW_HEIGHT / 2;
     ball.radius = BALL_RADIUS;
+    ball.mass = BALL_MASS;
     
     ball.surface = IMG_Load("data/ball.png");
 }
 
+void collide(float m0, float *u0, float m1, float *u1) {
+    float v0 = (*u0 * (m0 - m1) + 2 * m1 * (*u1)) / (m0 + m1);
+    float v1 = (*u1 * (m1 - m0) + 2 * m0 * (*u0)) / (m0 + m1);
+    *u0 = v0;
+    *u1 = v1;
+}
+
 void ball_compute_position(void) {
-    double pos_int_x = ball.x + ball.vel_x;
-    double pos_int_y = ball.y + ball.vel_y;
+    float pos_int_x = ball.x + ball.vel_x;
+    float pos_int_y = ball.y + ball.vel_y;
     
     // top and bottom walls
     if (pos_int_y <= ball.radius || pos_int_y >= WINDOW_HEIGHT - ball.radius)
         ball.vel_y = -ball.vel_y;
     // p1's paddle
     if (pos_int_y > p1.y && pos_int_y < p1.y + PADDLE_HEIGHT &&
-        (pos_int_x + ball.radius) > p1.x &&
-        (pos_int_x + ball.radius) < p1.x + PADDLE_WIDTH) {
-            ball.vel_x = -ball.vel_x;
-            ball.vel_x += p1.vel_x / 2;
-            p1.vel_x = -ball.vel_x / 2;
-            ball.vel_y += p1.vel_y / 2;
+        (pos_int_x + ball.radius) >= p1.x &&
+        (pos_int_x + ball.radius) <= p1.x + PADDLE_WIDTH) {
+            collide(ball.mass, &ball.vel_x, p1.mass, &p1.vel_x);
+            ball.vel_y += p1.vel_y / 4;
     }
     // p2's paddle
-    if (pos_int_y > p2.y && pos_int_y < p2.y + PADDLE_HEIGHT &&
-        (pos_int_x - ball.radius) < p2.x + PADDLE_WIDTH &&
-        (pos_int_x - ball.radius) > p2.x) {
-            ball.vel_x = -ball.vel_x;
-            ball.vel_x += p2.vel_x / 2;
-            p2.vel_x = -p2.vel_x / 2;
-            ball.vel_y += p2.vel_y / 2;
+    if (pos_int_y >= p2.y && pos_int_y <= p2.y + PADDLE_HEIGHT &&
+        (pos_int_x - ball.radius) <= p2.x + PADDLE_WIDTH &&
+        (pos_int_x - ball.radius) >= p2.x) {
+            collide(ball.mass, &ball.vel_x, p2.mass, &p2.vel_x);
+            ball.vel_y += p2.vel_y / 4;
     }
     
     add_update(ball.x - ball.radius, ball.y - ball.radius, 2 * ball.radius,
                2 * ball.radius);
 
-    if (pos_int_x < ball.radius) { // left wall
+    if (pos_int_x <= ball.radius) { // left wall
         scores.p1++, reset_ball();
     }
-    else if (pos_int_x > WINDOW_WIDTH - ball.radius) // right wall
+    else if (pos_int_x >= WINDOW_WIDTH - ball.radius) // right wall
         scores.p2++, reset_ball();
     
     
@@ -208,7 +216,7 @@ void ball_compute_position(void) {
 
 void paddle_move(paddle_t *paddle) {
     // use the current position of the paddle to determine which box it's in
-    double paddle_x = paddle->x, paddle_y = paddle->y;
+    float paddle_x = paddle->x, paddle_y = paddle->y;
     
     // factor in friction for the paddle
     paddle->vel_y = copysign(MAX(abs(paddle->vel_y) - 0.5, 0), paddle->vel_y);
