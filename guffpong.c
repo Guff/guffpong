@@ -149,12 +149,12 @@ void ball_compute_position(void) {
     double pos_int_y = ball.y + ball.vel_y;
     
     // top and bottom walls
-    if (pos_int_y < BALL_RADIUS || pos_int_y > WINDOW_HEIGHT - BALL_RADIUS)
+    if (pos_int_y < ball.radius || pos_int_y > WINDOW_HEIGHT - ball.radius)
         ball.vel_y = -ball.vel_y;
     // p1's paddle
     if (pos_int_y > p1.y && pos_int_y < p1.y + PADDLE_HEIGHT &&
-        (pos_int_x + BALL_RADIUS) > p1.x &&
-        (pos_int_x + BALL_RADIUS) < p1.x + PADDLE_WIDTH) {
+        (pos_int_x + ball.radius) > p1.x &&
+        (pos_int_x + ball.radius) < p1.x + PADDLE_WIDTH) {
             ball.vel_x = -ball.vel_x;
             ball.vel_x += p1.vel_x / 2;
             p1.vel_x = -ball.vel_x / 2;
@@ -162,18 +162,18 @@ void ball_compute_position(void) {
     }
     // p2's paddle
     if (pos_int_y > p2.y && pos_int_y < p2.y + PADDLE_HEIGHT &&
-        (pos_int_x - BALL_RADIUS) < p2.x + PADDLE_WIDTH &&
-        (pos_int_x - BALL_RADIUS) > p2.x) {
+        (pos_int_x - ball.radius) < p2.x + PADDLE_WIDTH &&
+        (pos_int_x - ball.radius) > p2.x) {
             ball.vel_x = -ball.vel_x;
             ball.vel_x += p2.vel_x / 2;
             p2.vel_x = -p2.vel_x / 2;
             ball.vel_y += p2.vel_y / 2;
     }
     
-    if (pos_int_x < BALL_RADIUS) { // left wall
+    if (pos_int_x < ball.radius) { // left wall
         scores.p1++, reset_ball();
     }
-    else if (pos_int_x > WINDOW_WIDTH - BALL_RADIUS) // right wall
+    else if (pos_int_x > WINDOW_WIDTH - ball.radius) // right wall
         scores.p2++, reset_ball();
     
     ball.x += ball.vel_x;
