@@ -5,7 +5,7 @@
 #include <time.h>
 #include <SDL.h>
 #include <SDL_Pango.h>
-#include <SDL_gfxPrimitives.h>
+#include <SDL_image.h>
 
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
@@ -19,6 +19,7 @@
 #define AI_FUDGE      0.5
 #define P1_X          370
 #define P2_X          (WINDOW_HEIGHT - P1_X - PADDLE_WIDTH)
+#define BALL_PNG      "data/ball.png"
 
 struct {
     bool up_down;
@@ -31,6 +32,7 @@ typedef struct {
     double vel_x, vel_y;
     double x, y;
     double radius;
+    SDL_Surface *surface;
 } ball_t;
 
 typedef struct {
@@ -136,10 +138,8 @@ void draw_frame(SDL_Surface *screen) {
     // player 2's paddle
     
     // draw the circle
-    filledCircleColor(screen, ball.x, ball.y, ball.radius - 1, 0xffffffff);
-    // draw an antialiased border for the circle
-    //aacircleColor(screen, ball.x, ball.y, ball.radius, 0xffffffff);
-    
+    SDL_Rect ball_rect = {ball.x - 10, ball.y - 10, 20, 20};
+    SDL_BlitSurface(ball.surface, NULL, screen, &ball_rect);
     // score text
     char text[9];
     snprintf(text, 9, "%03i  %03i", scores.p2, scores.p1);
@@ -159,6 +159,8 @@ void reset_ball(void) {
     ball.x = WINDOW_WIDTH / 2;
     ball.y = WINDOW_HEIGHT / 2;
     ball.radius = BALL_RADIUS;
+    
+    ball.surface = IMG_Load("data/ball.png");
 }
 
 void ball_compute_position(void) {
@@ -301,6 +303,7 @@ int main(int argc, char **argv) {
     SDL_Init(SDL_INIT_VIDEO);
     
     SDLPango_Init();
+    IMG_Init(IMG_INIT_PNG);
     
     SDL_WM_SetCaption("guffpong", "guffpong");
     
