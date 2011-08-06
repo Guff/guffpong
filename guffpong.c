@@ -23,7 +23,6 @@
 #define P1_X          370
 #define P2_X          (WINDOW_HEIGHT - P1_X - PADDLE_WIDTH)
 #define P_Y           (WINDOW_HEIGHT / 2 - PADDLE_HEIGHT)
-#define NUM_BODIES    7
 
 struct {
     bool up_down;
@@ -31,16 +30,6 @@ struct {
     bool left_down;
     bool right_down;
 } key_state = {false, false, false, false};
-
-enum body_index {
-    BODY_INDEX_WALL_TOP,
-    BODY_INDEX_WALL_BOTTOM,
-    BODY_INDEX_WALL_LEFT,
-    BODY_INDEX_WALL_RIGHT,
-    BODY_INDEX_P1,
-    BODY_INDEX_P2,
-    BODY_INDEX_BALL
-};
 
 typedef enum {
     BODY_TYPE_HLINE,
@@ -56,12 +45,6 @@ typedef struct {
     float mass;
 } body_t;
 
-typedef struct {
-    float radius;
-    SDL_Surface *surface;
-    body_t *body;
-} ball_t;
-
 struct {
     unsigned int p1;
     unsigned int p2;
@@ -69,6 +52,7 @@ struct {
 
 SDL_Surface *ball_surface;
 
+body_t wall_top, wall_bottom, wall_left, wall_right, wall_center;
 body_t ball;
 body_t p1 = {BODY_TYPE_BOX, P1_X, P_Y, PADDLE_WIDTH, PADDLE_HEIGHT, 0, 0,
              PADDLE_MASS};
@@ -79,8 +63,6 @@ SDLPango_Context *scores_context;
 
 int update_rects_n = 0;
 SDL_Rect *update_rects = NULL;
-
-body_t bodies[NUM_BODIES];
 
 bool running;
 
@@ -104,29 +86,31 @@ body_t new_body(body_type_t type, float x, float y, float w, float h, float vx,
 }
 
 void init_bodies(void) {
-    bodies[BODY_INDEX_WALL_TOP]    = new_body(BODY_TYPE_HLINE,
-                                              0, 0,
-                                              WINDOW_WIDTH, 0,
-                                              0, 0,
-                                              0);
-    bodies[BODY_INDEX_WALL_BOTTOM] = new_body(BODY_TYPE_HLINE,
-                                              0, WINDOW_HEIGHT,
-                                              WINDOW_WIDTH, 0,
-                                              0, 0,
-                                              0);
-    bodies[BODY_INDEX_WALL_LEFT]   = new_body(BODY_TYPE_VLINE,
-                                              0, 0,
-                                              0, WINDOW_HEIGHT,
-                                              0, 0,
-                                              0);
-    bodies[BODY_INDEX_WALL_RIGHT]  = new_body(BODY_TYPE_VLINE,
-                                              WINDOW_WIDTH, 0,
-                                              0, WINDOW_HEIGHT,
-                                              0, 0,
-                                              0);
-    bodies[BODY_INDEX_P1]          = p1;
-    bodies[BODY_INDEX_P2]          = p2;
-    bodies[BODY_INDEX_BALL]        = ball;
+    wall_top    = new_body(BODY_TYPE_HLINE,
+                           0, 0,
+                           WINDOW_WIDTH, 0,
+                           0, 0,
+                           0);
+    wall_bottom = new_body(BODY_TYPE_HLINE,
+                           0, WINDOW_HEIGHT,
+                           WINDOW_WIDTH, 0,
+                           0, 0,
+                           0);
+    wall_left   = new_body(BODY_TYPE_VLINE,
+                           0, 0,
+                           0, WINDOW_HEIGHT,
+                           0, 0,
+                           0);
+    wall_right  = new_body(BODY_TYPE_VLINE,
+                           WINDOW_WIDTH, 0,
+                           0, WINDOW_HEIGHT,
+                           0, 0,
+                           0);
+    wall_center = new_body(BODY_TYPE_VLINE,
+                           WINDOW_WIDTH / 2, 0,
+                           0, WINDOW_HEIGHT,
+                           0, 0,
+                           0);
 }
 
 void get_input(void) {
@@ -229,10 +213,69 @@ void reset_ball(void) {
 }
 
 void collide(float m0, float *u0, float m1, float *u1) {
+    if (m1 == 0) {
+        *u0 = -*u0;
+        return;
+    }
+    
     float v0 = (*u0 * (m0 - m1) + 2 * m1 * (*u1)) / (m0 + m1);
     float v1 = (*u1 * (m1 - m0) + 2 * m0 * (*u0)) / (m0 + m1);
     *u0 = v0;
     *u1 = v1;
+}
+
+// assume that b0 is a box
+float will_box_collide(body_t b0, body_t b1) {
+    switch (b1.type) {
+        case BODY_TYPE_VLINE:
+            if (b0.vx > 0) {
+                if (b0.x + b0.w > b1.x)
+                    return 0;
+                else {
+                    if (b0.x + b0.w + b0.vx > b1.x)
+                        return (b1.x - b0.x - b0.w) / b0.vx;
+                    else
+                        return 0;
+                }
+            } else {
+                if (b0.x < b1.x)
+                    return 0;
+                else {
+                    if (b0.x + b0.vx < b1.x)
+                        return (b1.x - b0.x) / b0.vx;
+                    else
+                        return 0;
+                }
+            }
+        
+        case BODY_TYPE_HLINE:
+            if (b0.vy >= 0) {
+                if (b0.y > b1.y)
+                    return 0;
+                else {
+                    if (b0.y + b0.vy + b0.h > b1.y)
+                        return (b1.y - b0.y - b0.h) / b0.vy;
+                    else
+                        return 0;
+                }
+            } else {
+                if (b0.y < b1.y)
+                    return 0;
+                else {
+                    if (b0.y + b0.vy < b1.y)
+                        return (b1.y - b0.y) / b0.vy;
+                    else
+                        return 0;
+                }
+            }
+        case BODY_TYPE_BOX:
+            return 0;
+    }
+    return 0;
+}
+
+bool will_bodies_collide(body_t b0, body_t b1) {
+    return false;
 }
 
 void compute_collisions(void) {
@@ -279,43 +322,43 @@ void paddle_move(body_t *paddle) {
     // use the current position of the paddle to determine which box it's in
     float paddle_x = paddle->x, paddle_y = paddle->y;
     
+    body_t walls[2];
+    
+    if (paddle_x > WINDOW_WIDTH / 2) {
+        walls[0] = wall_center;
+        walls[1] = wall_right;
+    } else {
+        walls[0] = wall_left;
+        walls[1] = wall_center;
+    }
+    
     // factor in friction for the paddle
     paddle->vy = copysign(MAX(abs(paddle->vy) - 0.5, 0), paddle->vy);
-    paddle->y += paddle->vy;
-    
-    if (paddle->y > WINDOW_HEIGHT - PADDLE_HEIGHT) {
-        paddle->y = WINDOW_HEIGHT - PADDLE_HEIGHT;
-        paddle->vy = -paddle->vy;
-    } else if (paddle->y < 0) {
-        paddle->y = 0;
-        paddle->vy = -paddle->vy;
-    }
-    
     paddle->vx = copysign(MAX(abs(paddle->vx) - 0.5, 0), paddle->vx);
-    paddle->x += paddle->vx;
-    if (paddle_x >= WINDOW_WIDTH / 2) {
-        if (paddle->x > WINDOW_WIDTH - PADDLE_WIDTH) {
-            paddle->x = WINDOW_WIDTH - PADDLE_WIDTH;
-            paddle->vx = -paddle->vx;
-        } else if (paddle->x < WINDOW_WIDTH / 2) {
-            paddle->x = WINDOW_WIDTH / 2;
-            paddle->vx = -paddle->vx;
-        }
-    } else {
-        if (paddle->x < 0) {
-            paddle->x = 0;
-            paddle->vx = -paddle->vx;
-        } else if (paddle->x > WINDOW_WIDTH / 2 - PADDLE_WIDTH) {
-            paddle->x = WINDOW_WIDTH / 2 - PADDLE_WIDTH;
-            paddle->vx = -paddle->vx;
-        }
+    
+    float tx = MAX(will_box_collide(*paddle, walls[0]),
+                   will_box_collide(*paddle, walls[1]));
+    if (tx) {
+        paddle->x += paddle->vx * tx;
+        collide(paddle->mass, &paddle->vx, 0, NULL);
     }
+    paddle->x += paddle->vx * (1 - tx);
+    
+    float ty = MAX(will_box_collide(*paddle, wall_bottom),
+                   will_box_collide(*paddle, wall_top));
+    if (ty) {
+        paddle->y += paddle->vy * ty;
+        collide(paddle->mass, &paddle->vy, 0, NULL);
+    }
+    paddle->y += paddle->vy * (1 - ty);
     
     int x, y, w, h;
     x = MIN(paddle->x, paddle_x);
     y = MIN(paddle->y, paddle_y);
-    w = MAX(paddle->x, paddle_x) - x + PADDLE_WIDTH;
-    h = MAX(paddle->y, paddle_y) - y + PADDLE_HEIGHT;
+    w = MAX(paddle->x, paddle_x) - x + paddle->w;
+    h = MAX(paddle->y, paddle_y) - y + paddle->h;
+    
+    printf("%i %i %f %f %f\n", x, y, MAX(paddle->x, paddle_x), MAX(paddle->y, paddle_y), ty);
     
     add_update(x, y, w, h);
 }
