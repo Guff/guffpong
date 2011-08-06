@@ -230,48 +230,52 @@ float will_box_collide(body_t b0, body_t b1) {
         case BODY_TYPE_VLINE:
             if (b0.vx > 0) {
                 if (b0.x + b0.w > b1.x)
-                    return 0;
+                    return -1;
                 else {
                     if (b0.x + b0.w + b0.vx > b1.x)
                         return (b1.x - b0.x - b0.w) / b0.vx;
                     else
-                        return 0;
+                        return -1;
                 }
-            } else {
+            } else if (b0.vx < 0) {
                 if (b0.x < b1.x)
-                    return 0;
+                    return -1;
                 else {
                     if (b0.x + b0.vx < b1.x)
                         return (b1.x - b0.x) / b0.vx;
                     else
-                        return 0;
+                        return -1;
                 }
+            } else {
+                return 0;
             }
         
         case BODY_TYPE_HLINE:
-            if (b0.vy >= 0) {
+            if (b0.vy > 0) {
                 if (b0.y > b1.y)
-                    return 0;
+                    return -1;
                 else {
                     if (b0.y + b0.vy + b0.h > b1.y)
                         return (b1.y - b0.y - b0.h) / b0.vy;
                     else
-                        return 0;
+                        return -1;
                 }
-            } else {
+            } else if (b0.vy < 0) {
                 if (b0.y < b1.y)
-                    return 0;
+                    return -1;
                 else {
                     if (b0.y + b0.vy < b1.y)
                         return (b1.y - b0.y) / b0.vy;
                     else
-                        return 0;
+                        return -1;
                 }
+            } else {
+                return 0;
             }
         case BODY_TYPE_BOX:
-            return 0;
+            return -1;
     }
-    return 0;
+    return -1;
 }
 
 bool will_bodies_collide(body_t b0, body_t b1) {
@@ -338,19 +342,25 @@ void paddle_move(body_t *paddle) {
     
     float tx = MAX(will_box_collide(*paddle, walls[0]),
                    will_box_collide(*paddle, walls[1]));
-    if (tx) {
+    if (tx >= 0) {
         paddle->x += paddle->vx * tx;
         collide(paddle->mass, &paddle->vx, 0, NULL);
     }
-    paddle->x += paddle->vx * (1 - tx);
+    if (tx == -1)
+        paddle->x += paddle->vx;
+    else
+        paddle->x += paddle->vx * (1 - tx);
     
     float ty = MAX(will_box_collide(*paddle, wall_bottom),
                    will_box_collide(*paddle, wall_top));
-    if (ty) {
+    if (ty >=0) {
         paddle->y += paddle->vy * ty;
         collide(paddle->mass, &paddle->vy, 0, NULL);
     }
-    paddle->y += paddle->vy * (1 - ty);
+    if (ty == -1)
+        paddle->y += paddle->vy;
+    else
+        paddle->y += paddle->vy * (1 - ty);
     
     int x, y, w, h;
     x = MIN(paddle->x, paddle_x);
