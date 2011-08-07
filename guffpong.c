@@ -185,7 +185,7 @@ void draw_frame(SDL_Surface *screen) {
     // player 2's paddle
     
     // draw the circle
-    SDL_Rect ball_rect = {ball.x, ball.y, 20, 20};
+    SDL_Rect ball_rect = {ball.x, ball.y, ball.w, ball.h};
     SDL_BlitSurface(ball_surface, NULL, screen, &ball_rect);
     // score text
     char text[9];
@@ -231,6 +231,7 @@ bool point_in_interval(float p, float q0, float q1) {
 // assume that b0 is a box
 float will_box_collide(body_t b0, body_t b1) {
     switch (b1.type) {
+        case BODY_TYPE_BOX: // deliberate fallthrough, for now
         case BODY_TYPE_VLINE:
             if (point_in_interval(b1.x, b0.x + b0.vx, b0.x + b0.vx + b0.w)) {
                 if (b0.vx) {
@@ -268,10 +269,6 @@ float will_box_collide(body_t b0, body_t b1) {
                 return -1;
             }
             break;
-        
-        case BODY_TYPE_BOX:
-            return -1;
-            break;
     }
     return -1;
 }
@@ -280,9 +277,17 @@ void ball_compute_position(void) {
     float pos_int_x = ball.x + ball.vx;
     float pos_int_y = ball.y + ball.vy;
     
+    add_update(ball.x, ball.y, ball.w, ball.h);
     // top and bottom walls
-    if (pos_int_y <= 0 || pos_int_y + ball.h >= WINDOW_HEIGHT)
-        ball.vy = -ball.vy;
+    float ty = MAX(will_box_collide(ball, wall_top),
+                   will_box_collide(ball, wall_bottom));
+    if (ty >= 0) {
+        ball.y += ball.vy * ty;
+        collide(ball.mass, &ball.vy, 0, NULL);
+        ball.y += ball.vy * (1 - ty);
+    } else if (ty == -1) {
+        ball.y += ball.vy;
+    }
     // p1's paddle
     if (pos_int_y > p1.y && pos_int_y < p1.y + PADDLE_HEIGHT &&
         (pos_int_x + ball.w) >= p1.x &&
@@ -297,7 +302,6 @@ void ball_compute_position(void) {
             ball.vy += p2.vy / 4;
     }
     
-    add_update(ball.x, ball.y, ball.w, ball.h);
 
     if (pos_int_x <= 0) { // left wall
         scores.p1++, reset_ball();
@@ -307,7 +311,7 @@ void ball_compute_position(void) {
     
     
     ball.x += ball.vx;
-    ball.y += ball.vy;
+    //ball.y += ball.vy;
     
     add_update(ball.x, ball.y, ball.w, ball.h);
 }
