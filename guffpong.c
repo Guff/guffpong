@@ -224,66 +224,56 @@ void collide(float m0, float *u0, float m1, float *u1) {
     *u1 = v1;
 }
 
+bool point_in_interval(float p, float q0, float q1) {
+    return (p >= MIN(q0, q1) && p <= MAX(q0, q1));
+}
+
 // assume that b0 is a box
 float will_box_collide(body_t b0, body_t b1) {
     switch (b1.type) {
         case BODY_TYPE_VLINE:
-            if (b0.vx > 0) {
-                if (b0.x + b0.w > b1.x)
-                    return -1;
-                else {
-                    if (b0.x + b0.w + b0.vx > b1.x)
-                        return (b1.x - b0.x - b0.w) / b0.vx;
-                    else
-                        return -1;
-                }
-            } else if (b0.vx < 0) {
-                if (b0.x < b1.x)
-                    return -1;
-                else {
-                    if (b0.x + b0.vx < b1.x)
+            if (point_in_interval(b1.x, b0.x + b0.vx, b0.x + b0.vx + b0.w)) {
+                if (b0.vx) {
+                    if (b0.x >= b1.x)
                         return (b1.x - b0.x) / b0.vx;
                     else
-                        return -1;
+                        return (b1.x - b0.x - b0.w) / b0.vx;
                 }
+                else
+                    return 0;
+            } else if (b1.x >= b0.x + b0.w && b0.x + b0.vx + b0.w >= b1.x) {
+                return (b1.x - b0.x - b0.w) / b0.vx;
+            } else if (b1.x <= b0.x && b0.x + b0.vx <= b1.x) {
+                return (b1.x - b0.x) / b0.vx;
             } else {
-                return 0;
+                return -1;
             }
+            break;
         
         case BODY_TYPE_HLINE:
-            if (b0.vy > 0) {
-                if (b0.y > b1.y)
-                    return -1;
-                else {
-                    if (b0.y + b0.vy + b0.h > b1.y)
-                        return (b1.y - b0.y - b0.h) / b0.vy;
-                    else
-                        return -1;
-                }
-            } else if (b0.vy < 0) {
-                if (b0.y < b1.y)
-                    return -1;
-                else {
-                    if (b0.y + b0.vy < b1.y)
+            if (point_in_interval(b1.y, b0.y + b0.vy, b0.y + b0.vy + b0.h)) {
+                if (b0.vy) {
+                    if (b0.y >= b1.y)
                         return (b1.y - b0.y) / b0.vy;
                     else
-                        return -1;
+                        return (b1.y - b0.y - b0.h) / b0.vy;
+                } else {
+                    return 0;
                 }
+            } else if (b1.y >= b0.y + b0.h && b0.y + b0.vy + b0.h >= b1.y) {
+                return (b1.y - b0.y - b0.h) / b0.vy;
+            } else if (b1.y <= b0.y && b0.y + b0.vy <= b1.y) {
+                return (b1.y - b0.y) / b0.vy;
             } else {
-                return 0;
+                return -1;
             }
+            break;
+        
         case BODY_TYPE_BOX:
             return -1;
+            break;
     }
     return -1;
-}
-
-bool will_bodies_collide(body_t b0, body_t b1) {
-    return false;
-}
-
-void compute_collisions(void) {
-    
 }
 
 void ball_compute_position(void) {
@@ -345,30 +335,27 @@ void paddle_move(body_t *paddle) {
     if (tx >= 0) {
         paddle->x += paddle->vx * tx;
         collide(paddle->mass, &paddle->vx, 0, NULL);
-    }
-    if (tx == -1)
-        paddle->x += paddle->vx;
-    else
         paddle->x += paddle->vx * (1 - tx);
-    
+    } else if (tx == -1) {
+        paddle->x += paddle->vx;
+    }
+        
     float ty = MAX(will_box_collide(*paddle, wall_bottom),
                    will_box_collide(*paddle, wall_top));
+    
     if (ty >=0) {
         paddle->y += paddle->vy * ty;
         collide(paddle->mass, &paddle->vy, 0, NULL);
-    }
-    if (ty == -1)
-        paddle->y += paddle->vy;
-    else
         paddle->y += paddle->vy * (1 - ty);
+    } else if (ty == -1) {
+        paddle->y += paddle->vy;
+    }
     
     int x, y, w, h;
     x = MIN(paddle->x, paddle_x);
     y = MIN(paddle->y, paddle_y);
     w = MAX(paddle->x, paddle_x) - x + paddle->w;
     h = MAX(paddle->y, paddle_y) - y + paddle->h;
-    
-    printf("%i %i %f %f %f\n", x, y, MAX(paddle->x, paddle_x), MAX(paddle->y, paddle_y), ty);
     
     add_update(x, y, w, h);
 }
