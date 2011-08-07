@@ -43,6 +43,7 @@ typedef struct {
     float w, h;
     float vx, vy;
     float mass;
+    SDL_Surface *surface;
 } body_t;
 
 struct {
@@ -50,14 +51,12 @@ struct {
     unsigned int p2;
 } scores = {0, 0};
 
-SDL_Surface *ball_surface;
-
 body_t wall_top, wall_bottom, wall_left, wall_right, wall_center;
 body_t ball;
 body_t p1 = {BODY_TYPE_BOX, P1_X, P_Y, PADDLE_WIDTH, PADDLE_HEIGHT, 0, 0,
-             PADDLE_MASS};
+             PADDLE_MASS, NULL};
 body_t p2 = {BODY_TYPE_BOX, P2_X, P_Y, PADDLE_WIDTH, PADDLE_HEIGHT, 0, 0,
-             PADDLE_MASS};
+             PADDLE_MASS, NULL};
              
 SDLPango_Context *scores_context;
 
@@ -81,7 +80,7 @@ void clear_updates(void) {
 
 body_t new_body(body_type_t type, float x, float y, float w, float h, float vx,
                  float vy, float mass) {
-    body_t body = {type, x, y, w, h, vx, vy, mass};
+    body_t body = {type, x, y, w, h, vx, vy, mass, NULL};
     return body;
 }
 
@@ -179,14 +178,14 @@ void draw_frame(SDL_Surface *screen) {
     
     // player 1's paddle
     SDL_Rect p1_rect = {p1.x, p1.y, PADDLE_WIDTH, PADDLE_HEIGHT};
-    SDL_Rect p2_rect = {p2.x, p2.y, PADDLE_WIDTH, PADDLE_HEIGHT};
-    SDL_FillRect(screen, &p1_rect, 0xffffffff);
-    SDL_FillRect(screen, &p2_rect, 0xffffffff);
+    SDL_BlitSurface(p1.surface, NULL, screen, &p1_rect);
     // player 2's paddle
+    SDL_Rect p2_rect = {p2.x, p2.y, PADDLE_WIDTH, PADDLE_HEIGHT};
+    SDL_BlitSurface(p2.surface, NULL, screen, &p2_rect);
     
     // draw the circle
     SDL_Rect ball_rect = {ball.x, ball.y, ball.w, ball.h};
-    SDL_BlitSurface(ball_surface, NULL, screen, &ball_rect);
+    SDL_BlitSurface(ball.surface, NULL, screen, &ball_rect);
     // score text
     char text[9];
     snprintf(text, 9, "%03i  %03i", scores.p2, scores.p1);
@@ -209,7 +208,20 @@ void reset_ball(void) {
     ball.h = 2 * BALL_RADIUS;
     ball.mass = BALL_MASS;
     
-    ball_surface = IMG_Load("data/ball.png");
+    if (ball.surface)
+        SDL_FreeSurface(ball.surface);
+    ball.surface = IMG_Load("data/ball.png");
+}
+
+void reset_paddles(void) {
+    p1.surface = SDL_CreateRGBSurface(SDL_HWSURFACE, PADDLE_WIDTH, PADDLE_HEIGHT,
+                                      32, 0xff000000, 0x00ff0000, 0x0000ff00,
+                                      0x000000ff);
+    SDL_FillRect(p1.surface, NULL, 0xffffffff);
+    p2.surface = SDL_CreateRGBSurface(SDL_HWSURFACE, PADDLE_WIDTH, PADDLE_HEIGHT,
+                                      32, 0xff000000, 0x00ff0000, 0x0000ff00,
+                                      0x000000ff);
+    SDL_FillRect(p2.surface, NULL, 0xffffffff);
 }
 
 void collide(float m0, float *u0, float m1, float *u1) {
@@ -376,6 +388,8 @@ void game_loop(SDL_Surface *screen) {
     
     srand(time(NULL));
     
+    reset_paddles();
+    
     reset_ball();
     
     init_bodies();
@@ -422,7 +436,7 @@ int main(int argc, char **argv) {
     
     SDL_WM_SetCaption("guffpong", "guffpong");
     
-    SDL_Surface *screen = SDL_SetVideoMode(WINDOW_WIDTH, WINDOW_HEIGHT, 16,
+    SDL_Surface *screen = SDL_SetVideoMode(WINDOW_WIDTH, WINDOW_HEIGHT, 32,
                                            SDL_HWSURFACE);
     SDL_ShowCursor(false);
     
